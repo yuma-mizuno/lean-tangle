@@ -22,7 +22,10 @@ inductive hom : ℕ → ℕ → Type
 | twist_hom (a) : hom a a
 | twist_inv (a) : hom a a
 
+
 open hom
+
+section
 
 local infixr ` ⟶ᵐ `:10 := hom
 local infixr ` ≫ `:80 := hom.comp -- type as \gg
@@ -47,6 +50,10 @@ inductive hom_equiv : Π {X Y : ℕ}, (X ⟶ᵐ Y) → (X ⟶ᵐ Y) → Prop
 | trans {X Y} {f g h : X ⟶ᵐ Y} : hom_equiv f g → hom_equiv g h → hom_equiv f h
 | comp {X Y Z} {f f' : X ⟶ᵐ Y} {g g' : Y ⟶ᵐ Z} :
     hom_equiv f f' → hom_equiv g g' → hom_equiv (f ≫ g) (f' ≫ g')
+-- | comp_congr_left {X Y Z} (a₁ a₂ : X ⟶ᵐ Y) (b : Y ⟶ᵐ Z) :
+--     hom_equiv a₁ a₂ → hom_equiv (a₁ ≫ b) (a₂ ≫ b)
+-- | comp_congr_right {X Y Z} (a : X ⟶ᵐ Y) (b₁ b₂ : Y ⟶ᵐ Z) :
+--     hom_equiv b₁ b₂ → hom_equiv (a ≫ b₁) (a ≫ b₂)
 | tensor {W X Y Z} {f f' : W ⟶ᵐ X} {g g' : Y ⟶ᵐ Z} :
     hom_equiv f f' → hom_equiv g g' → hom_equiv (f ⊗ g) (f' ⊗ g')
 | comp_id {X Y} (f : X ⟶ᵐ Y) : hom_equiv (f ≫ 𝟙 _) f
@@ -57,6 +64,10 @@ inductive hom_equiv : Π {X Y : ℕ}, (X ⟶ᵐ Y) → (X ⟶ᵐ Y) → Prop
 | tensor_comp {X₁ Y₁ Z₁ X₂ Y₂ Z₂}
     (f₁ : X₁ ⟶ᵐ Y₁) (f₂ : X₂ ⟶ᵐ Y₂) (g₁ : Y₁ ⟶ᵐ Z₁) (g₂ : Y₂ ⟶ᵐ Z₂) :
     hom_equiv ((f₁ ≫ g₁) ⊗ (f₂ ≫ g₂)) ((f₁ ⊗ f₂) ≫ (g₁ ⊗ g₂))
+| tensor_congr_left {X₁ Y₁ X₂ Y₂} (a₁ a₂ : X₁ ⟶ᵐ Y₁) (b : X₂ ⟶ᵐ Y₂) : 
+    hom_equiv a₁ a₂ → hom_equiv (a₁ ⊗ b) (a₂ ⊗ b)
+| tensor_congr_right {X₁ Y₁ X₂ Y₂} (a : X₁ ⟶ᵐ Y₁) (b₁ b₂ : X₂ ⟶ᵐ Y₂) : 
+    hom_equiv b₁ b₂ → hom_equiv (a ⊗ b₁) (a ⊗ b₂)
 | associator_hom_inv {X Y Z} : hom_equiv (α_ X Y Z ≫ α⁻¹_ X Y Z) (𝟙 _)
 | associator_inv_hom {X Y Z} : hom_equiv (α⁻¹_ X Y Z ≫ α_ X Y Z) (𝟙 _)
 | associator_naturality {X₁ X₂ X₃ Y₁ Y₂ Y₃} (f₁ : X₁ ⟶ᵐ Y₁) (f₂ : X₂ ⟶ᵐ Y₂) (f₃ : X₃ ⟶ᵐ Y₃) :
@@ -93,47 +104,59 @@ inductive hom_equiv : Π {X Y : ℕ}, (X ⟶ᵐ Y) → (X ⟶ᵐ Y) → Prop
 | twist_left_dual {X} : hom_equiv (θ_ X)
     (ℓ⁻¹_ X ≫ (η_ X ⊗ 𝟙 _) ≫ ((𝟙 _ ⊗ θ_ X) ⊗ 𝟙 _) ≫ α_ X X X ≫ (𝟙 _ ⊗ ε_ X) ≫ ρ_ X)
 
-def setoid_hom (X Y : ℕ) : setoid (X ⟶ᵐ Y) :=
-⟨hom_equiv,
-  ⟨λ f, hom_equiv.refl f, λ f g, hom_equiv.symm f g, λ f g h hfg hgh, hom_equiv.trans hfg hgh⟩⟩
-
-attribute [instance] setoid_hom
+end
 
 open hom_equiv
 
 def tangle_category : category ℕ :=
-{ hom := λ X Y, quotient (setoid_hom X Y),
-  id := λ X, ⟦hom.id _⟧,
-  comp := λ X Y Z f g, quotient.map₂ comp (by { intros f f' hf g g' hg, exact comp hf hg }) f g,
-  id_comp' := by { rintro X Y ⟨f⟩, exact quotient.sound (id_comp f) },
-  comp_id' := by { rintro X Y ⟨f⟩, exact quotient.sound (comp_id f) },
-  assoc' := by { rintro W X Y Z ⟨f⟩ ⟨g⟩ ⟨h⟩, exact quotient.sound (assoc f g h) } }
+{ hom := λ X Y, quot (@hom_equiv X Y),
+  id := λ X, quot.mk _ (id X),
+  comp := λ X Y Z, 
+  begin
+    intros f g,
+    rw quot.eq,
+  end,
+  -- quot.map₂ comp 
+  --   (λ f g h, begin 
+  --     intros H,
+  --     rw quot.eq,
+  --   refine hom_equiv.trans _ _,
+  --   exact f.comp g,
+  --   exact hom_equiv.refl _, 
+  --   end)
+  --   (λ _ _ _, comp_congr_left _ _ _),
+  id_comp' := by { rintro X Y ⟨f⟩, exact quot.sound (id_comp f) },
+  comp_id' := by { rintro X Y ⟨f⟩, exact quot.sound (comp_id f) },
+  assoc' := by { rintro W X Y Z ⟨f⟩ ⟨g⟩ ⟨h⟩, exact quot.sound (assoc f g h) } }
 
 local attribute [instance] tangle_category
 
+local notation `⟦`:max a `⟧` := quot.mk (hom_equiv) a
+
 def monoidal_category : monoidal_category ℕ :=
 { tensor_obj := λ X Y, X + Y,
-  tensor_hom := λ X₁ Y₁ X₂ Y₂, quotient.map₂ tensor $
-    by { intros _ _ h _ _ h', exact hom_equiv.tensor h h'},
-  tensor_id' := λ X Y, quotient.sound tensor_id,
+  tensor_hom := λ _ _ _ _, quot.map₂ tensor
+    (λ _, tensor_congr_right _)
+    (λ _, tensor_congr_left _),
+  tensor_id' := λ X Y, quot.sound tensor_id,
   tensor_comp' := λ X₁ Y₁ Z₁ X₂ Y₂ Z₂,
-    by { rintros ⟨f₁⟩ ⟨f₂⟩ ⟨g₁⟩ ⟨g₂⟩, exact quotient.sound (tensor_comp _ _ _ _) },
+    by { rintros ⟨f₁⟩ ⟨f₂⟩ ⟨g₁⟩ ⟨g₂⟩, exact quot.sound (tensor_comp _ _ _ _) },
   tensor_unit := 0,
   associator := λ X Y Z,
-    ⟨⟦associator_hom X Y Z⟧, ⟦associator_inv X Y Z⟧, 
-      quotient.sound associator_hom_inv, quotient.sound associator_inv_hom⟩,
+    ⟨⟦associator_hom X Y Z⟧, ⟦associator_inv X Y Z⟧,
+      quot.sound associator_hom_inv, quot.sound associator_inv_hom⟩,
   associator_naturality' := λ X₁ X₂ X₃ Y₁ Y₂ Y₃,
-    by { rintros ⟨f₁⟩ ⟨f₂⟩ ⟨f₃⟩, exact quotient.sound (associator_naturality _ _ _) },
+    by { rintros ⟨f₁⟩ ⟨f₂⟩ ⟨f₃⟩, exact quot.sound (associator_naturality _ _ _) },
   left_unitor := λ X,
     ⟨⟦left_unitor_hom X⟧, ⟦left_unitor_inv X⟧,
-      quotient.sound left_unitor_hom_inv, quotient.sound left_unitor_inv_hom⟩,
-  left_unitor_naturality' := λ X Y, by { rintro ⟨f⟩, exact quotient.sound (left_unitor_naturality _) },
+      quot.sound left_unitor_hom_inv, quot.sound left_unitor_inv_hom⟩,
+  left_unitor_naturality' := λ X Y, by { rintro ⟨f⟩, exact quot.sound (left_unitor_naturality _) },
   right_unitor := λ X,
     ⟨⟦right_unitor_hom X⟧, ⟦right_unitor_inv X⟧, 
-      quotient.sound right_unitor_hom_inv, quotient.sound right_unitor_inv_hom⟩,
-  right_unitor_naturality' := λ X Y, by { rintro ⟨f⟩, exact quotient.sound (right_unitor_naturality _) },
-  pentagon' := λ W X Y Z, quotient.sound pentagon,
-  triangle' := λ X Y, quotient.sound triangle }
+      quot.sound right_unitor_hom_inv, quot.sound right_unitor_inv_hom⟩,
+  right_unitor_naturality' := λ X Y, by { rintro ⟨f⟩, exact quot.sound (right_unitor_naturality _) },
+  pentagon' := λ W X Y Z, quot.sound pentagon,
+  triangle' := λ X Y, quot.sound triangle }
 
 local attribute [instance] monoidal_category
 
@@ -143,19 +166,19 @@ def left_rigid_category : left_rigid_category ℕ :=
     exact := 
     { coevaluation := ⟦coevaluation X⟧,
       evaluation := ⟦evaluation X⟧,
-      coevaluation_evaluation' := quotient.sound hom_equiv.coevaluation_evaluation,
-      evaluation_coevaluation' := quotient.sound hom_equiv.evaluation_coevaluation }}}
+      coevaluation_evaluation' := quot.sound hom_equiv.coevaluation_evaluation,
+      evaluation_coevaluation' := quot.sound hom_equiv.evaluation_coevaluation }}}
 
 def braided_category : braided_category ℕ := 
 { braiding := λ X Y, 
   { hom := ⟦braiding_hom X Y⟧,
     inv := ⟦braiding_inv X Y⟧,
-    hom_inv_id' := quotient.sound hom_equiv.braiding_hom_inv,
-    inv_hom_id' := quotient.sound hom_equiv.braiding_inv_hom },
+    hom_inv_id' := quot.sound hom_equiv.braiding_hom_inv,
+    inv_hom_id' := quot.sound hom_equiv.braiding_inv_hom },
   braiding_naturality' := λ W X Y Z,
-    by { rintro ⟨f⟩ ⟨g⟩, exact quotient.sound (hom_equiv.braiding_naturality f g)},
-  hexagon_forward' := λ X Y Z, quotient.sound (hom_equiv.hexagon_forward),
-  hexagon_reverse' := λ X Y Z, quotient.sound (hom_equiv.hexagon_reverse) }
+    by { rintro ⟨f⟩ ⟨g⟩, exact quot.sound (hom_equiv.braiding_naturality f g)},
+  hexagon_forward' := λ X Y Z, quot.sound (hom_equiv.hexagon_forward),
+  hexagon_reverse' := λ X Y Z, quot.sound (hom_equiv.hexagon_reverse) }
 
 local attribute [instance] left_rigid_category
 local attribute [instance] braided_category
@@ -163,22 +186,25 @@ local attribute [instance] braided_category
 /--
 Examples of tangles.
 -/
-abbreviation cap := coevaluation 1
-abbreviation cup := evaluation 1
-abbreviation vert := hom.id 1
-abbreviation over := braiding_hom 1 1
-abbreviation under := braiding_inv 1 1
+abbreviation cap : 0 ⟶ 2 := quot.mk _ (coevaluation 1)
+abbreviation cup : 2 ⟶ 0 := quot.mk _ (evaluation 1)
+abbreviation vert : 1 ⟶ 1 := quot.mk _ (hom.id 1)
+abbreviation over : 2 ⟶ 2 := quot.mk _ (braiding_hom 1 1)
+abbreviation under : 2 ⟶ 2 := quot.mk _ (braiding_inv 1 1)
 
 #check cap
 #check cup
 #check vert
 #check over
 #check under
-#check cap ⊗ under
+#check cap ≫ cup
 #check α_ 2 1 3
-#check ℓ⁻¹_ (1 + 1)
-#check (vert ⊗ vert) ≫ (ℓ⁻¹_ (1 + 1)) ≫ (cap ⊗ under) ≫ (over ⊗ under) ≫ (α⁻¹_ 2 1 1) ≫ (𝟙 4)
 
-example : 2 ⟶ 4 := ⟦(cap ⊗ under) ≫ (over ⊗ under)⟧ 
+open category_theory.monoidal_category
+
+#check (vert ⊗ vert) ≫ (λ_ (1 + 1)).inv ≫ (cap ⊗ under) ≫ 
+  (over ⊗ under) ≫ (α_ 2 1 1).inv ≫ (vert ⊗ vert ⊗ vert ⊗ vert)
+
+#check cap ≫ cup
 
 end tangle
