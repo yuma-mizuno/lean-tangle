@@ -101,7 +101,7 @@ attribute [instance] setoid_hom
 
 open hom_equiv
 
-def tangle_category : category ℕ :=
+def category : category ℕ :=
 { hom := λ X Y, quotient (setoid_hom X Y),
   id := λ X, ⟦hom.id _⟧,
   comp := λ X Y Z f g, quotient.map₂ comp (by { intros f f' hf g g' hg, exact comp hf hg }) f g,
@@ -109,7 +109,7 @@ def tangle_category : category ℕ :=
   comp_id' := by { rintro X Y ⟨f⟩, exact quotient.sound (comp_id f) },
   assoc' := by { rintro W X Y Z ⟨f⟩ ⟨g⟩ ⟨h⟩, exact quotient.sound (assoc f g h) } }
 
-local attribute [instance] tangle_category
+local attribute [instance] category
 
 def monoidal_category : monoidal_category ℕ :=
 { tensor_obj := λ X Y, X + Y,
